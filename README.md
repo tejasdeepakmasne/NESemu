@@ -1,7 +1,7 @@
 ### Building a NES [Nintendo Entertainment System] Emulator in Golang
 
-![Games](https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pcgamesn.com%2Femulation%2Fnes-metalnes-nesticle&psig=AOvVaw3ydirsVW-5mvZyobicEyXR&ust=1716493510509000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCPCftuSCooYDFQAAAAAdAAAAABAE)
-![Emulator](https://www.google.com/url?sa=i&url=https%3A%2F%2Fmedium.com%2F%40guilospanck%2Fthe-journey-of-writing-a-nes-emulator-part-i-the-cpu-6e83b50baa37&psig=AOvVaw3ydirsVW-5mvZyobicEyXR&ust=1716493510509000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCPCftuSCooYDFQAAAAAdAAAAABAI)
+<img src="https://www.pcgamesn.com/wp-content/sites/pcgamesn/2022/02/metalnes-nesticle-550x309.jpg" alt="Games" width="300">
+<img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*P6k0-fjVPuJzGcwr5IzSNg.jpeg" alt="Games" width="300">
 
 #### What is a NES Emulator?
 
