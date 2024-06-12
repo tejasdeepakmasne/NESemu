@@ -194,6 +194,13 @@ func (c *CPU) addressMode(mode AddressingMode) uint16 {
 func NewCPU() *CPU {
 	cpu := &CPU{
 		// Initialize CPU state and registers here
+		accumulator:   0,
+		xIndex:        0,
+		yIndex:        0,
+		statusRegister: 0b00100100,
+		programCounter: 0,
+		stackPointer: StackReset,
+		memory: make([]uint8, 0x10000),
 	}
 	return cpu
 }
