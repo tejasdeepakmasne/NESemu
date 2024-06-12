@@ -1,5 +1,10 @@
 package cpu
 
+import (
+	"fmt"
+	"os"
+)
+
 // CPU represents the Central Processing Unit of the NES.
 
 const NonMaskableInterruptVector uint16 = 0xFFFA
@@ -651,7 +656,501 @@ func (c *CPU) tya() {
 	c.updateZeroAndNegativeFlag(c.accumulator)
 }
 
+func (c *CPU) reset() {
+	c.accumulator = 0
+	c.xIndex = 0
+	c.yIndex = 0
+	c.stackPointer = StackReset
+	c.programCounter = c.readMemory16(0xFFFC)
+	c.statusRegister = 0b00100100
+}
+
+func (c *CPU) loadProgram(program []uint8) {
+	for i, value := range program {
+		c.memory[0x8000+i] = value
+	}
+	c.writeMemory16(0xFFFC, 0x8000)
+}
+
 // ExecuteInstruction executes one instruction on the CPU.
 func (c *CPU) ExecuteInstruction() {
 	// Implement instruction execution logic here
+	for {
+		opcode := c.memory[c.programCounter]
+		c.programCounter++
+		switch opcode {
+
+		case 0x69:
+			c.adc(modeImmediate)
+			c.programCounter++
+		case 0x65:
+			c.adc(modeZeroPage)
+			c.programCounter++
+		case 0x75:
+			c.adc(modeZeroPageX)
+			c.programCounter++
+		case 0x6D:
+			c.adc(modeAbsolute)
+			c.programCounter += 2
+		case 0x7d:
+			c.adc(modeAbsoluteX)
+			c.programCounter += 2
+		case 0x79:
+			c.adc(modeAbsoluteY)
+			c.programCounter += 2
+		case 0x61:
+			c.adc(modeIndirectX)
+			c.programCounter++
+		case 0x71:
+			c.adc(modeIndirectY)
+			c.programCounter++
+
+		case 0x29:
+			c.and(modeImmediate)
+			c.programCounter++
+		case 0x25:
+			c.and(modeZeroPage)
+			c.programCounter++
+		case 0x35:
+			c.and(modeZeroPageX)
+			c.programCounter++
+		case 0x2d:
+			c.and(modeAbsolute)
+			c.programCounter += 2
+		case 0x3d:
+			c.and(modeAbsoluteX)
+			c.programCounter += 2
+		case 0x39:
+			c.and(modeAbsoluteY)
+			c.programCounter += 2
+		case 0x21:
+			c.and(modeIndirectX)
+			c.programCounter++
+		case 0x31:
+			c.and(modeIndirectY)
+			c.programCounter++
+
+		case 0x0a:
+			c.asl(modeAccumulator)
+		case 0x06:
+			c.asl(modeZeroPage)
+			c.programCounter++
+		case 0x16:
+			c.asl(modeZeroPageX)
+			c.programCounter++
+		case 0x0e:
+			c.asl(modeAbsolute)
+			c.programCounter += 2
+		case 0x1e:
+			c.asl(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0x90:
+			c.bcc()
+			c.programCounter++
+
+		case 0xb0:
+			c.bcs()
+			c.programCounter++
+
+		case 0xf0:
+			c.beq()
+			c.programCounter++
+
+		case 0x24:
+			c.bit(modeZeroPage)
+			c.programCounter++
+		case 0x2c:
+			c.bit(modeAbsolute)
+			c.programCounter += 2
+
+		case 0x30:
+			c.bmi()
+			c.programCounter++
+
+		case 0xd0:
+			c.bne()
+			c.programCounter++
+
+		case 0x10:
+			c.bpl()
+			c.programCounter++
+
+		case 0x00:
+			c.brk()
+
+		case 0x50:
+			c.bvc()
+			c.programCounter++
+
+		case 0x70:
+			c.bvs()
+			c.programCounter++
+
+		case 0x18:
+			c.clc()
+		case 0xd8:
+			c.cld()
+		case 0x58:
+			c.cli()
+		case 0xb8:
+			c.clv()
+
+		case 0xc9:
+			c.cmp(modeImmediate)
+			c.programCounter++
+		case 0xc5:
+			c.cmp(modeZeroPage)
+			c.programCounter++
+		case 0xd5:
+			c.cmp(modeZeroPageX)
+			c.programCounter++
+		case 0xcd:
+			c.cmp(modeAbsolute)
+			c.programCounter += 2
+		case 0xdd:
+			c.cmp(modeAbsoluteX)
+			c.programCounter += 2
+		case 0xd9:
+			c.cmp(modeAbsoluteY)
+			c.programCounter += 2
+		case 0xc1:
+			c.cmp(modeIndirectX)
+			c.programCounter++
+		case 0xd1:
+			c.cmp(modeIndirectY)
+			c.programCounter++
+
+		case 0xe0:
+			c.cpx(modeImmediate)
+			c.programCounter++
+		case 0xe4:
+			c.cpx(modeZeroPage)
+			c.programCounter++
+		case 0xec:
+			c.cpx(modeAbsolute)
+			c.programCounter += 2
+
+		case 0xc0:
+			c.cpy(modeImmediate)
+			c.programCounter++
+
+		case 0xc4:
+			c.cpy(modeZeroPage)
+			c.programCounter++
+		case 0xcc:
+			c.cpy(modeAbsolute)
+			c.programCounter += 2
+
+		case 0xc6:
+			c.dec(modeZeroPage)
+			c.programCounter++
+		case 0xd6:
+			c.dec(modeZeroPageX)
+			c.programCounter++
+		case 0xce:
+			c.dec(modeAbsolute)
+			c.programCounter += 2
+		case 0xde:
+			c.dec(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0xca:
+			c.dex()
+		case 0x88:
+			c.dey()
+
+		case 0x49:
+			c.eor(modeImmediate)
+			c.programCounter++
+		case 0x45:
+			c.eor(modeZeroPage)
+			c.programCounter++
+		case 0x55:
+			c.eor(modeZeroPageX)
+			c.programCounter++
+		case 0x4d:
+			c.eor(modeAbsolute)
+			c.programCounter += 2
+		case 0x5d:
+			c.eor(modeAbsoluteX)
+			c.programCounter += 2
+		case 0x59:
+			c.eor(modeAbsoluteY)
+			c.programCounter += 2
+		case 0x41:
+			c.eor(modeIndirectX)
+			c.programCounter++
+		case 0x51:
+			c.eor(modeIndirectY)
+			c.programCounter++
+
+		case 0xe6:
+			c.inc(modeZeroPage)
+			c.programCounter++
+		case 0xf6:
+			c.inc(modeZeroPageX)
+			c.programCounter++
+		case 0xee:
+			c.inc(modeAbsolute)
+			c.programCounter += 2
+		case 0xfe:
+			c.inc(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0xe8:
+			c.inx()
+		case 0xc8:
+			c.iny()
+
+		case 0x4c:
+			c.jmp(modeAbsolute)
+			c.programCounter += 2
+		case 0x6c:
+			c.jmp(modeIndirect)
+			c.programCounter += 2
+
+		case 0x20:
+			c.jsr()
+			c.programCounter += 2
+
+		case 0xa9:
+			c.lda(modeImmediate)
+			c.programCounter++
+		case 0xa5:
+			c.lda(modeZeroPage)
+			c.programCounter++
+		case 0xb5:
+			c.lda(modeZeroPageX)
+			c.programCounter++
+		case 0xad:
+			c.lda(modeAbsolute)
+			c.programCounter += 2
+		case 0xbd:
+			c.lda(modeAbsoluteX)
+			c.programCounter += 2
+		case 0xb9:
+			c.lda(modeAbsoluteY)
+			c.programCounter += 2
+		case 0xa1:
+			c.lda(modeIndirectX)
+			c.programCounter++
+		case 0xb1:
+			c.lda(modeIndirectY)
+			c.programCounter++
+
+		case 0xa2:
+			c.ldx(modeImmediate)
+			c.programCounter++
+		case 0xa6:
+			c.ldx(modeZeroPage)
+			c.programCounter++
+		case 0xae:
+			c.ldx(modeAbsolute)
+			c.programCounter += 2
+		case 0xbe:
+			c.ldx(modeAbsoluteY)
+			c.programCounter += 2
+
+		case 0xa0:
+			c.ldy(modeImmediate)
+			c.programCounter++
+		case 0xa4:
+			c.ldy(modeZeroPage)
+			c.programCounter++
+		case 0xb4:
+			c.ldy(modeZeroPageX)
+			c.programCounter++
+		case 0xac:
+			c.ldy(modeAbsolute)
+			c.programCounter += 2
+		case 0xbc:
+			c.ldy(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0x4a:
+			c.lsr(modeAccumulator)
+		case 0x46:
+			c.lsr(modeZeroPage)
+			c.programCounter++
+		case 0x56:
+			c.lsr(modeZeroPageX)
+			c.programCounter++
+		case 0x4e:
+			c.lsr(modeAbsolute)
+			c.programCounter += 2
+		case 0x5e:
+			c.lsr(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0xea:
+			c.nop()
+
+		case 0x09:
+			c.ora(modeImmediate)
+			c.programCounter++
+		case 0x05:
+			c.ora(modeZeroPage)
+			c.programCounter++
+		case 0x015:
+			c.ora(modeZeroPageX)
+			c.programCounter++
+		case 0x0d:
+			c.ora(modeAbsolute)
+			c.programCounter += 2
+		case 0x1d:
+			c.ora(modeAbsoluteX)
+			c.programCounter += 2
+		case 0x19:
+			c.ora(modeAbsoluteY)
+			c.programCounter += 2
+		case 0x01:
+			c.ora(modeIndirectX)
+			c.programCounter++
+		case 0x11:
+			c.ora(modeIndirectY)
+			c.programCounter++
+
+		case 0x48:
+			c.pha()
+		case 0x08:
+			c.php()
+		case 0x68:
+			c.pla()
+		case 0x28:
+			c.plp()
+
+		case 0x2a:
+			c.rol(modeAccumulator)
+		case 0x26:
+			c.rol(modeZeroPage)
+			c.programCounter++
+		case 0x36:
+			c.rol(modeZeroPageX)
+			c.programCounter++
+		case 0x2e:
+			c.rol(modeAbsolute)
+			c.programCounter += 2
+		case 0x3e:
+			c.rol(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0x6a:
+			c.ror(modeAccumulator)
+		case 0x66:
+			c.ror(modeZeroPage)
+			c.programCounter++
+		case 0x76:
+			c.ror(modeZeroPageX)
+			c.programCounter++
+		case 0x6e:
+			c.ror(modeAbsolute)
+			c.programCounter += 2
+		case 0x7e:
+			c.ror(modeAbsoluteX)
+			c.programCounter += 2
+
+		case 0x40:
+			c.rti()
+		case 0x060:
+			c.rts()
+
+		case 0xe9:
+			c.sbc(modeImmediate)
+			c.programCounter++
+		case 0xe5:
+			c.sbc(modeZeroPage)
+			c.programCounter++
+		case 0xf5:
+			c.sbc(modeZeroPageX)
+			c.programCounter++
+		case 0xed:
+			c.sbc(modeAbsolute)
+			c.programCounter += 2
+		case 0xfd:
+			c.sbc(modeAbsoluteX)
+			c.programCounter += 2
+		case 0xf9:
+			c.sbc(modeAbsoluteY)
+			c.programCounter += 2
+		case 0xe1:
+			c.sbc(modeIndirectX)
+			c.programCounter++
+		case 0xf1:
+			c.sbc(modeIndirectY)
+			c.programCounter++
+
+		case 0x38:
+			c.sec()
+		case 0xf8:
+			c.sed()
+		case 0x78:
+			c.sei()
+
+		case 0x85:
+			c.sta(modeZeroPage)
+			c.programCounter++
+		case 0x95:
+			c.sta(modeZeroPageX)
+			c.programCounter++
+		case 0x8d:
+			c.sta(modeAbsolute)
+			c.programCounter += 2
+		case 0x9d:
+			c.sta(modeAbsoluteX)
+			c.programCounter += 2
+		case 0x99:
+			c.sta(modeAbsoluteY)
+			c.programCounter += 2
+		case 0x81:
+			c.sta(modeIndirectX)
+			c.programCounter++
+		case 0x91:
+			c.sta(modeIndirectY)
+			c.programCounter++
+
+		case 0x86:
+			c.stx(modeZeroPage)
+			c.programCounter++
+		case 0x96:
+			c.stx(modeZeroPageY)
+			c.programCounter++
+		case 0x8e:
+			c.stx(modeAbsolute)
+			c.programCounter += 2
+
+		case 0x84:
+			c.sty(modeZeroPage)
+			c.programCounter++
+		case 0x94:
+			c.sty(modeZeroPageX)
+			c.programCounter++
+		case 0x8c:
+			c.sty(modeAbsolute)
+			c.programCounter++
+
+		case 0xaa:
+			c.tax()
+		case 0xa8:
+			c.tay()
+		case 0xba:
+			c.tsx()
+		case 0x8a:
+			c.txa()
+		case 0x9a:
+			c.txs()
+		case 0x98:
+			c.tya()
+
+		default:
+			fmt.Fprintf(os.Stdout, "UNDEFINED BEHAVIOUR %v at %v", opcode, c.programCounter)
+
+		}
+	}
+}
+
+func (c *CPU) loadAndInterpret(program []uint8) {
+	c.loadProgram(program)
+	c.reset()
+	c.ExecuteInstruction()
 }
