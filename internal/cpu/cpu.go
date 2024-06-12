@@ -8,6 +8,10 @@ const InterruptRequestVector uint16 = 0xFFFE
 const StackBase uint16 = 0x0100
 const StackReset uint8 = 0xFD
 
+func extractBit(val uint8, pos uint8) uint8 {
+	return (val & (1 << pos)) >> pos
+}
+
 type CPU struct {
 	accumulator    uint8
 	xIndex         uint8
@@ -59,12 +63,12 @@ func (c *CPU) writeMemory(address uint16, value uint8) {
 	c.memory[address] = value
 }
 func (c *CPU) pushStack(value uint8) {
-	// Implement stack push logic here
+	// Implement stack pushStack logic here
 	c.memory[StackBase+uint16(c.stackPointer)] = value
 	c.stackPointer--
 }
 func (c *CPU) popStack() uint8 {
-	// Implement stack pop logic here
+	// Implement stack popStack logic here
 	top := c.memory[StackBase+uint16(c.stackPointer)]
 	c.stackPointer++
 	return top
@@ -83,7 +87,7 @@ func (c *CPU) writeMemory16(address uint16, value uint16) {
 	c.writeMemory(address+1, msb)
 }
 func (c *CPU) popStack16() uint16 {
-	// Implement stack pop logic here
+	// Implement stack popStack logic here
 	msb := uint16(c.memory[c.stackPointer])
 	c.stackPointer++
 	lsb := uint16(c.memory[c.stackPointer])
@@ -91,7 +95,7 @@ func (c *CPU) popStack16() uint16 {
 	return (msb << 8) | lsb
 }
 func (c *CPU) pushStack16(value uint16) {
-	// Implement stack push logic here
+	// Implement stack pushStack logic here
 	lsb := uint8(value & 0xFF)
 	msb := uint8(value >> 8)
 	c.memory[StackBase+uint16(c.stackPointer)] = lsb
@@ -241,6 +245,410 @@ func (c *CPU) updateZeroAndNegativeFlag(value uint8) {
 	} else {
 		c.clearFlag(Z)
 	}
+}
+
+// INSTRUCTIONS
+func (c *CPU) adc(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.accumulator + value + c.getFlag(C)
+	if res > 255 {
+		c.setFlag(C)
+	}
+	if res > 127 {
+		c.setFlag(V)
+	}
+
+	c.accumulator = res
+	c.updateZeroAndNegativeFlag(c.accumulator)
+
+}
+
+func (c *CPU) and(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	c.accumulator &= value
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) asl(mode AddressingMode) {
+	if mode == modeAccumulator {
+		c.setFlagToValue(C, extractBit(c.accumulator, 7))
+		c.accumulator = c.accumulator << 1
+	} else {
+		address := c.addressMode(mode)
+		value := c.readMemory(address)
+		c.setFlagToValue(C, extractBit(value, 7))
+		value = value << 1
+		c.writeMemory(address, value)
+	}
+
+	c.updateZeroAndNegativeFlag(c.statusRegister)
+}
+
+func (c *CPU) bcc() {
+	if c.getFlag(C) == 0 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) bcs() {
+	if c.getFlag(C) == 1 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) beq() {
+	if c.getFlag(Z) == 1 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) bit(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.accumulator & value
+	if res == 0 {
+		c.setFlag(Z)
+	} else {
+		c.clearFlag(Z)
+	}
+	c.setFlagToValue(V, extractBit(res, 6))
+	c.setFlagToValue(N, extractBit(res, 7))
+}
+
+func (c *CPU) bmi() {
+	if c.getFlag(N) == 1 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) bne() {
+	if c.getFlag(C) == 0 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) bpl() {
+	if c.getFlag(N) == 0 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) brk() {
+	c.pushStack16(c.programCounter)
+	c.pushStack(c.statusRegister)
+	c.programCounter = c.readMemory16(InterruptRequestVector)
+	c.setFlag(B)
+}
+
+func (c *CPU) bvc() {
+	if c.getFlag(V) == 0 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) bvs() {
+	if c.getFlag(V) == 1 {
+		address := c.addressMode(modeRelative)
+		value := c.readMemory(address)
+		c.programCounter += uint16(value)
+	}
+}
+
+func (c *CPU) clc() {
+	c.clearFlag(C)
+}
+
+func (c *CPU) cld() {
+	c.clearFlag(D)
+}
+
+func (c *CPU) cli() {
+	c.clearFlag(I)
+}
+
+func (c *CPU) clv() {
+	c.clearFlag(V)
+}
+
+func (c *CPU) cmp(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.accumulator - value
+	if res >= uint8(0) {
+		c.setFlag(C)
+	}
+	c.updateZeroAndNegativeFlag(res)
+}
+
+func (c *CPU) cpx(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.xIndex - value
+	if res >= uint8(0) {
+		c.setFlag(C)
+	}
+	c.updateZeroAndNegativeFlag(res)
+
+}
+
+func (c *CPU) cpy(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.yIndex - value
+	if res >= uint8(0) {
+		c.setFlag(C)
+	}
+	c.updateZeroAndNegativeFlag(res)
+
+}
+
+func (c *CPU) dec(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	value--
+	c.writeMemory(address, value)
+	c.updateZeroAndNegativeFlag(value)
+}
+
+func (c *CPU) dex() {
+	c.xIndex--
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) dey() {
+	c.yIndex--
+	c.updateZeroAndNegativeFlag(c.yIndex)
+}
+
+func (c *CPU) eor(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	c.accumulator = c.accumulator ^ value
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) inc(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	value++
+	c.writeMemory(address, value)
+	c.updateZeroAndNegativeFlag(value)
+}
+
+func (c *CPU) inx() {
+	c.xIndex++
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) iny() {
+	c.yIndex++
+	c.updateZeroAndNegativeFlag(c.yIndex)
+}
+
+func (c *CPU) jmp(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.programCounter = address
+
+}
+
+func (c *CPU) jsr() {
+	c.pushStack16(c.programCounter - 1)
+	address := c.addressMode(modeAbsolute)
+	c.programCounter = address
+}
+
+func (c *CPU) lda(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.accumulator = c.readMemory(address)
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) ldx(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.xIndex = c.readMemory(address)
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) ldy(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.yIndex = c.readMemory(address)
+	c.updateZeroAndNegativeFlag(c.yIndex)
+}
+
+func (c *CPU) lsr(mode AddressingMode) {
+	if mode == modeAccumulator {
+		c.setFlagToValue(C, extractBit(c.accumulator, 0))
+		c.accumulator = c.accumulator >> 1
+		c.updateZeroAndNegativeFlag(c.accumulator)
+	} else {
+		address := c.addressMode(mode)
+		value := c.readMemory(address)
+		c.setFlagToValue(C, extractBit(value, 0))
+		value = value >> 1
+		c.writeMemory(address, value)
+		c.updateZeroAndNegativeFlag(value)
+	}
+}
+
+func (c *CPU) nop() {
+
+}
+
+func (c *CPU) ora(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	c.accumulator = c.accumulator | value
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) pha() {
+	c.pushStack(c.accumulator)
+}
+
+func (c *CPU) php() {
+	c.pushStack(c.statusRegister)
+}
+
+func (c *CPU) pla() {
+	c.accumulator = c.popStack()
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) plp() {
+	c.statusRegister = c.popStack()
+	c.updateZeroAndNegativeFlag(c.statusRegister)
+}
+
+func (c *CPU) rol(mode AddressingMode) {
+	if mode == modeAccumulator {
+		prevCarry := extractBit(c.statusRegister, 0)
+		c.setFlagToValue(C, extractBit(c.accumulator, 7))
+		c.accumulator = (c.accumulator << 1) | prevCarry
+		c.updateZeroAndNegativeFlag(c.accumulator)
+	} else {
+		address := c.addressMode(mode)
+		value := c.readMemory(address)
+		prevCarry := extractBit(c.statusRegister, 0)
+		c.setFlagToValue(C, extractBit(value, 7))
+		value = (value << 1) | prevCarry
+		c.writeMemory(address, value)
+		c.updateZeroAndNegativeFlag(value)
+	}
+}
+
+func (c *CPU) ror(mode AddressingMode) {
+	if mode == modeAccumulator {
+		prevCarry := extractBit(c.statusRegister, 0)
+		c.setFlagToValue(C, extractBit(c.accumulator, 0))
+		c.accumulator = (c.accumulator >> 1) | (prevCarry << 7)
+		c.updateZeroAndNegativeFlag(c.accumulator)
+	} else {
+		address := c.addressMode(mode)
+		value := c.readMemory(address)
+		prevCarry := extractBit(c.statusRegister, 0)
+		c.setFlagToValue(C, extractBit(c.accumulator, 0))
+		value = (value >> 1) | (prevCarry << 7)
+		c.writeMemory(address, value)
+		c.updateZeroAndNegativeFlag(value)
+	}
+}
+
+func (c *CPU) rti() {
+	c.statusRegister = c.popStack()
+	c.programCounter = c.popStack16()
+}
+
+func (c *CPU) rts() {
+	c.programCounter = c.popStack16()
+}
+
+func (c *CPU) sbc(mode AddressingMode) {
+	address := c.addressMode(mode)
+	value := c.readMemory(address)
+	res := c.accumulator - value - (1 - c.getFlag(C))
+	if res > 255 {
+		c.setFlag(C)
+	}
+	if res > 127 {
+		c.setFlag(V)
+	}
+
+	c.accumulator = res
+	c.updateZeroAndNegativeFlag(c.accumulator)
+
+}
+
+func (c *CPU) sec() {
+	c.setFlagToValue(C, 1)
+}
+
+func (c *CPU) sed() {
+	c.setFlagToValue(D, 1)
+}
+
+func (c *CPU) sei() {
+	c.setFlagToValue(I, 1)
+}
+
+func (c *CPU) sta(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.writeMemory(address, c.accumulator)
+}
+
+func (c *CPU) stx(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.writeMemory(address, c.xIndex)
+}
+
+func (c *CPU) sty(mode AddressingMode) {
+	address := c.addressMode(mode)
+	c.writeMemory(address, c.yIndex)
+}
+
+func (c *CPU) tax() {
+	c.xIndex = c.accumulator
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) tay() {
+	c.yIndex = c.accumulator
+	c.updateZeroAndNegativeFlag(c.yIndex)
+}
+
+func (c *CPU) tsx() {
+	c.xIndex = c.statusRegister
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) txa() {
+	c.accumulator = c.xIndex
+	c.updateZeroAndNegativeFlag(c.accumulator)
+}
+
+func (c *CPU) txs() {
+	c.statusRegister = c.xIndex
+	c.updateZeroAndNegativeFlag(c.xIndex)
+}
+
+func (c *CPU) tya() {
+	c.accumulator = c.yIndex
+	c.updateZeroAndNegativeFlag(c.accumulator)
 }
 
 // ExecuteInstruction executes one instruction on the CPU.
