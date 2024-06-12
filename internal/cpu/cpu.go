@@ -9,10 +9,10 @@ const StackBase uint16 = 0x0100
 const StackReset uint8 = 0xFD
 
 type CPU struct {
-	accumulator uint8
-	xIndex uint8
-	yIndex uint8
-	stackPointer uint8
+	accumulator    uint8
+	xIndex         uint8
+	yIndex         uint8
+	stackPointer   uint8
 	programCounter uint16
 	statusRegister uint8
 
@@ -22,14 +22,14 @@ type CPU struct {
 type Flags uint8
 
 const (
-	C Flags = iota// Carry
-	Z // Zero
-	I // Interrupt Disable
-	D // Decimal Mode
-	B // B Flag
-	X // Unused
-	V // Overflow
-	N // Negative
+	C Flags = iota // Carry
+	Z              // Zero
+	I              // Interrupt Disable
+	D              // Decimal Mode
+	B              // B Flag
+	X              // Unused
+	V              // Overflow
+	N              // Negative
 )
 
 type AddressingMode int
@@ -52,28 +52,54 @@ const (
 
 func (c *CPU) readMemory(address uint16) uint8 {
 	// Implement memory read logic here
+	return c.memory[address]
 }
 func (c *CPU) writeMemory(address uint16, value uint8) {
 	// Implement memory write logic here
+	c.memory[address] = value
 }
 func (c *CPU) pushStack(value uint8) {
 	// Implement stack push logic here
+	c.memory[StackBase+uint16(c.stackPointer)] = value
+	c.stackPointer--
 }
 func (c *CPU) popStack() uint8 {
 	// Implement stack pop logic here
+	top := c.memory[StackBase+uint16(c.stackPointer)]
+	c.stackPointer++
+	return top
 }
 func (c *CPU) readMemory16(address uint16) uint16 {
 	// Implement memory read logic here
+	lsb := uint16(c.memory[address])
+	msb := uint16(c.memory[address+1])
+	return (msb << 8) | lsb
 }
 func (c *CPU) writeMemory16(address uint16, value uint16) {
 	// Implement memory write logic here
+	lsb := uint8(value & 0xFF)
+	msb := uint8(value >> 8)
+	c.writeMemory(address, lsb)
+	c.writeMemory(address+1, msb)
 }
 func (c *CPU) popStack16() uint16 {
 	// Implement stack pop logic here
+	msb := uint16(c.memory[c.stackPointer])
+	c.stackPointer++
+	lsb := uint16(c.memory[c.stackPointer])
+	c.stackPointer++
+	return (msb << 8) | lsb
 }
 func (c *CPU) pushStack16(value uint16) {
 	// Implement stack push logic here
+	lsb := uint8(value & 0xFF)
+	msb := uint8(value >> 8)
+	c.memory[StackBase+uint16(c.stackPointer)] = lsb
+	c.stackPointer--
+	c.memory[StackBase+uint16(c.stackPointer)] = msb
+	c.stackPointer--
 }
+
 func (c *CPU) addressMode(mode AddressingMode) (uint16, uint16) {
 	switch mode {
 	case modeImmediate:
