@@ -150,7 +150,6 @@ func (c *CPU) addressMode(mode AddressingMode) uint16 {
 		msb := c.readMemory(uint16(offset + 1))
 		address = uint16(msb)<<8 | uint16(lsb)
 
-
 	case modeIndirectY:
 		// Indirect Y addressing mode: The operand is the byte at the address formed by adding the Y register to the zero page address.
 		// Implement logic to fetch the operand from memory and return the address.
@@ -177,7 +176,7 @@ func (c *CPU) addressMode(mode AddressingMode) uint16 {
 		indirectVector := (msb << 8) | lsb
 		address_lsb := uint16(c.readMemory(indirectVector))
 		address_msb := uint16(c.readMemory(indirectVector + 1))
-		if indirectVector & 0x00ff == 0x00ff {
+		if indirectVector&0x00ff == 0x00ff {
 			address_msb = address_lsb & 0xff00
 		}
 		address = (address_msb << 8) | address_lsb
@@ -194,15 +193,54 @@ func (c *CPU) addressMode(mode AddressingMode) uint16 {
 func NewCPU() *CPU {
 	cpu := &CPU{
 		// Initialize CPU state and registers here
-		accumulator:   0,
-		xIndex:        0,
-		yIndex:        0,
+		accumulator:    0,
+		xIndex:         0,
+		yIndex:         0,
 		statusRegister: 0b00100100,
 		programCounter: 0,
-		stackPointer: StackReset,
-		memory: make([]uint8, 0x10000),
+		stackPointer:   StackReset,
+		memory:         make([]uint8, 0x10000),
 	}
 	return cpu
+}
+
+// Helper FUnctions for setting and clearing flags
+func (c *CPU) setFlag(flags ...Flags) {
+	for _, f := range flags {
+		c.statusRegister |= 1 << f
+	}
+}
+
+func (c *CPU) clearFlag(flags ...Flags) {
+	for _, f := range flags {
+		c.statusRegister &= ^(1 << f)
+	}
+}
+
+func (c *CPU) setFlagToValue(flag Flags, value uint8) {
+	if value == 1 {
+		c.setFlag(flag)
+	} else {
+		c.clearFlag(flag)
+	}
+}
+
+func (c *CPU) getFlag(flag Flags) uint8 {
+	return (c.statusRegister & (1 << flag)) >> flag
+}
+
+func (c *CPU) updateZeroAndNegativeFlag(value uint8) {
+	if value == 0 {
+		c.setFlag(Z)
+	} else {
+		c.clearFlag(Z)
+	}
+
+	if value&128 == 128 {
+		c.setFlag(Z)
+	} else {
+		c.clearFlag(Z)
+	}
 }
 
 // ExecuteInstruction executes one instruction on the CPU.
