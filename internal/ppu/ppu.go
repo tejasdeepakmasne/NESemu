@@ -16,6 +16,7 @@ type PPU struct {
 		ppuAddr uint8
 		ppuData uint8
 	}
+	//Internal registers
 	internReg struct {
 		v uint16
 		t uint16
@@ -23,6 +24,7 @@ type PPU struct {
 		w bool
 	}
 	type tile struct{
+	//Uses two uint64's to store 16 bytes of a tile
 		plane1 uint64
 		plane2 uint64
 	}
